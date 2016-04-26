@@ -16,8 +16,8 @@ CHROM <- 6
 TRANSCRIPT <-  "NM_006772"
 INPUTDIR <- paste0("./inputs/",GENE,"/")
 getwd()
-FASTA == NULL
-BED == NULL
+FASTA <- FASTA
+BED <- BED
 
 anno.path <- paste0(INPUTDIR,GENE,"_anno.hg19_multianno.csv")
 GENE.vars <- read.csv(anno.path)
@@ -52,8 +52,8 @@ GENE.vars$CADD.phred <- as.numeric(as.character(y))
 natesyn <- natevars$Start
 GENE.vars %>% 
   filter(ExonicFunc.refGene == "synonymous SNV") %>%
-  filter(grepl("GENE.vars:NM_000314.+",AAChange.refGene)) -> GENE.vars.syn
-GENE.vars.syn$aapos <- as.numeric(gsub(".*(GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+","\\2",
+  filter(grepl(paste0("GENE.vars:",TRANSCRIPT,".+"),AAChange.refGene)) -> GENE.vars.syn
+GENE.vars.syn$aapos <- as.numeric(gsub(".*(GENE.vars:",TRANSCRIPT,":exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+","\\2",
                               GENE.vars.syn$AAChange.refGene))
 GENE.vars.syn %>% filter(aapos %in% natesyn) -> GENE.vars.syn
 GENE.vars.syn$aachange <- gsub("GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.([A-Z][0-9]+[A-Z]).+","\\1",GENE.vars.syn$AAChange.refGene,perl=TRUE)

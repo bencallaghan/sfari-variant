@@ -4,8 +4,10 @@ library(stringr)
 
 GENE <- "SYNGAP1"
 CHROM <- 6
-INPUTDIR <- paste0("./inputs/",GENE,"/")
+INPUTDIR <- paste0("/home/bcallaghan/NateDBCopy/inputs/",GENE,"/")
 getwd()
+
+#
 
 ## BED File
 bedpath <- paste0(INPUTDIR,GENE,".bed")
@@ -19,7 +21,7 @@ BED <- bedfile[grepl(paste0(canonical,".+"),bedfile$transcript),]
 ##
 
 ## FASTA File
-fastapath <- paste0("./inputs/",GENE,"/",GENE,".fa")
+fastapath <- paste0(INPUTDIR,GENE,".fa")
 print(fastapath)
 fastafile <- read.table(fastapath,skip = 1)
 FASTA <- paste0(fastafile$V1,collapse="")
@@ -38,10 +40,35 @@ for (i in 1:nrow(BED)){
   }
 }
 print(awkcommand)
-# cmd.out <- run.remote(cmd=awkcommand , remote= "apu")
+touchcmd <- paste0("touch ", INPUTDIR, "cadd",GENE)
+awkcmd <- paste0(touchcmd, " ; ", awkcommand)
+# cmd.out <- run.remote(cmd=awkcmd , remote= "apu")
 
 ## Run annovar on exonic CADD
 caddpath <- paste0(INPUTDIR,"cadd",GENE)
 annocmd <- paste0("perl /space/bin/annovar/table_annovar.pl ", caddpath, " /space/bin/annovar/humandb/ -buildver hg19 -out ", INPUTDIR,GENE, "_anno -otherinfo -remove -protocol refGene,genomicSuperDups,esp6500si_all,1000g2012apr_all,snp135,ljb_all,exac03,cadd -operation g,r,f,f,f,f,f,f -nastring . -csvout")
 # cmd.out <- run.remote(cmd=annocmd , remote= "apu")
 
+## File checks:
+check_inputs <- function(){
+  miss <- NULL
+  if(file.exists(fastapath) == FALSE){
+    miss <- "fasta"
+  } 
+  if(file.exists(bedpath) == FALSE){
+    miss <- c(miss,"bed")
+  } 
+  if(file.exists(caddpath) == FALSE){
+    miss <- c(miss,"cadd")
+  } 
+  if(file.exists(paste0(INPUTDIR,GENE,"_anno.hg19_multianno.csv")) == FALSE){
+    miss <- c(miss,"caddanno")
+  } 
+  if(is.null(miss)){
+    return("all good")
+  }else{
+  return(paste(miss, "files missing, fix before prioritisation."))
+}
+}
+
+check_inputs()
