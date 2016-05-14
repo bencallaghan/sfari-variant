@@ -74,7 +74,10 @@ PTEN.mr %>% arrange(Start) -> PTEN.mr
 ### Filtering 
 
 ###
-
+boxplot(PTEN.mr$PredictProtein)
+boxplot(PTEN.mr$CADD.phred)
+quantile(PTEN.mr$PredictProtein,.90)
+quantile(PTEN.mr$CADD.phred,.90)
 ##### Filter Positive Controls
 PTEN.mr %>% mutate(PC = ifelse(PredictProtein > 75 & CADD.phred > 30 & (exac03 == 0 | is.na(exac03)) ,yes="PositiveControl", no = FALSE)) -> PTEN.mr
 # Graph Predict Protein

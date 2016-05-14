@@ -10,14 +10,18 @@ getwd()
 #
 
 ## BED File
-bedpath <- paste0(INPUTDIR,GENE,".bed")
-print(bedpath)
-bedfile <- read.table(bedpath,skip= 1, col.names=c('chr','Start','Stop','transcript','something','strand'))
-exoncounts <- table(gsub("(.+)_exon.+","\\1", bedfile$transcript))
-canonical <- names(exoncounts[which(exoncounts == max(exoncounts))])
+# bedpath <- paste0(INPUTDIR,GENE,".bed")
+# print(bedpath)
+# bedfile <- read.table(bedpath,skip= 1, col.names=c('chr','Start','Stop','transcript','something','strand'))
+# exoncounts <- table(gsub("(.+)_exon.+","\\1", bedfile$transcript))
+# canonical <- names(exoncounts[which(exoncounts == max(exoncounts))])
 # Choose canonical as most exons - if you capture extra (untranscribed) exons it will be filtered out anyway but don't want to lose
 # any at this point
-BED <- bedfile[grepl(paste0(canonical,".+"),bedfile$transcript),]
+# BED <- bedfile[grepl(paste0(canonical,".+"),bedfile$transcript),]
+BED.canon <- read.table('/home/bcallaghan/NateDBCopy/inputs/UCSC_exons_modif_canonical.bed')
+BED.canon %>% filter(V1 == paste0('chr',CHROM) & V4 == GENE) -> BED.canon.gene
+colnames(BED.canon.gene) <- c("Chrom","Start","Stop","Gene","Exon","Transcript","Strand")
+BED <- BED.canon.gene
 ##
 
 ## FASTA File
@@ -31,12 +35,13 @@ awkcommand <- paste0("awk '$1 == ",CHROM, " && (")
 for (i in 1:nrow(BED)){
   if(i < nrow(BED)){
   print(i)
-  exoniccmd <- (paste0("($2 > ",BED$Start[i], " && $2 < ", BED$Stop[i],") || "))
+  exoniccmd <- (paste0("($2 > ",BED$Start[i] - 1, " && $2 < ", BED$Stop[i] + 1 ,") || "))
   awkcommand <- paste0(awkcommand,exoniccmd)
   }else{
     print(i)
-    exoniccmd <- (paste0("($2 > ",BED$Start[i], " && $2 < ", BED$Stop[i],")) "))
-    awkcommand <- paste0(awkcommand,exoniccmd,"{print $0}' /space/bin/annovar/humandb/hg19_cadd.txt > ", INPUTDIR,"cadd",GENE )
+    exoniccmd <- (paste0("($2 > ",BED$Start[i] - 1, " && $2 < ", BED$Stop[i] + 1,")) "))
+    awkcommand <- paste0(awkcommand,exoniccmd,"{print $0}' /space/bin/annovar/humandb/hg19_cadd.txt > ",
+                         INPUTDIR,"cadd",GENE, " 2> ", INPUTDIR, "cadd", GENE, ".err" )
   }
 }
 print(awkcommand)

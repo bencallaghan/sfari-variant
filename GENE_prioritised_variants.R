@@ -1,4 +1,4 @@
-##### Find variants for model organisms for GENE.vars
+##### Find variants for model organisms for Genes of interest
 
 ##### Setup
 library(dplyr)
@@ -27,7 +27,9 @@ GENE.PP <- read.table(pp.path)
 nate.path <- paste0(INPUTDIR,GENE,".hg19_multianno.csv")
 natevars <- read.csv(nate.path)
 head(natevars)
+natevars %>% filter(Gene.refGene == GENE) -> natevars
 natevars %>% select(c(1,2,3,4,5,6,7,9,10,11,36,41)) -> p 
+
 png(filename="outputs/natvars.png",width=1500, height = 26 * nrow(p))
 grid.arrange(tableGrob(p))
 dev.off()
@@ -52,12 +54,21 @@ GENE.vars$CADD.phred <- as.numeric(as.character(y))
 natesyn <- natevars$Start
 GENE.vars %>% 
   filter(ExonicFunc.refGene == "synonymous SNV") %>%
-  filter(grepl(paste0("GENE.vars:",TRANSCRIPT,".+"),AAChange.refGene)) -> GENE.vars.syn
-GENE.vars.syn$aapos <- as.numeric(gsub(".*(GENE.vars:",TRANSCRIPT,":exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+","\\2",
-                              GENE.vars.syn$AAChange.refGene))
-GENE.vars.syn %>% filter(aapos %in% natesyn) -> GENE.vars.syn
-GENE.vars.syn$aachange <- gsub("GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.([A-Z][0-9]+[A-Z]).+","\\1",GENE.vars.syn$AAChange.refGene,perl=TRUE)
+  filter(grepl(paste0(GENE,":",TRANSCRIPT,".+"),AAChange.refGene)) -> GENE.vars.syn
+GENE.vars.syn$aapos <- as.numeric(gsub(".*p.[A-Z]([0-9]+)[A-Z]","\\1",GENE.vars.syn$AAChange.refGene))
+
+
+
+
+GENE.vars.syn %>% filter(Start %in% as.numeric(levels(natesyn))[natesyn]) -> GENE.vars.syn
+GENE.vars.syn$aachange <- gsub(".*p.([A-Z][0-9]+[A-Z]).*","\\1",GENE.vars.syn$AAChange.refGene,perl=TRUE)
+head(GENE.vars.syn)
+if(nrow(GENE.vars.syn) == 0){
+  print("No appropriate synonymous mutations")
+}
 #####
+
+
 
 #### Filtering
 GENE.vars$Func.refGene <- gsub("exonic;splicing","exonic",GENE.vars$Func.refGene)
@@ -67,54 +78,80 @@ GENE.vars.f$AAChange.refGene
 # GENE.vars.f %>% mutate(aapos = as.numeric(gsub(".*(GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+","\\2",GENE.vars.f$AAChange.refGene))) -> GENE.vars.f
 
 #********************
-GENE.vars.f$aapos <- as.numeric(gsub(".*GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+","\\2",GENE.vars.f$AAChange.refGene))
-GENE.vars.f$aapos <- as.numeric(gsub(paste0( ".*" , GENE , ":" , TRANSCRIPT , ":exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+"),"\\2",GENE.vars.f$AAChange.refGene)) 
+# GENE.vars.f$aapos <- as.numeric(gsub(paste0(".*GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+"),"\\2",GENE.vars.f$AAChange.refGene))
+# GENE.vars.f$aapos <- as.numeric(gsub(paste0( ".*" , GENE , ":" , TRANSCRIPT , ":exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+"),"\\2",GENE.vars.f$AAChange.refGene)) 
+# as.numeric(gsub(paste0( ".*" , GENE , ":" , TRANSCRIPT , ":exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+"),"\\2",GENE.vars.f$AAChange.refGene)) 
+# regex <- paste0(GENE,":",TRANSCRIPT,":exon[")
+# GENE.vars.f$AAChange.refGene
+
+# Add columns for aa position and aa change for each mutation
+regex <- ".*p.[A-Z]([0-9]+)[A-Z]"
+GENE.vars.f$aapos <- as.numeric(gsub(regex,"\\1",GENE.vars.f$AAChange.refGene))
+head(GENE.vars.f)
+regex <- paste0(GENE,":",TRANSCRIPT,".*p.([A-Z][0-9]+[A-Z]).*")
+GENE.vars.f$aachange <- gsub(regex,"\\1",GENE.vars.f$AAChange.refGene)
+
 # *********************
 
 ggplot(GENE.vars.f, aes(x= aapos, y = CADD.phred)) + geom_point()
-GENE.vars$aachange <- gsub("GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.([A-Z][0-9]+[A-Z]).+","\\1",GENE.vars$AAChange.refGene,perl=TRUE)
+
+
+# GENE.vars$aachange <- gsub("GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.([A-Z][0-9]+[A-Z]).+","\\1",GENE.vars$AAChange.refGene,perl=TRUE)
 # What's PredictProtein score look like in the context of a gene?
-GENE.PP %>% mutate(aapos = as.numeric(gsub('[A-Z]([0-9]+)[A-Z]','\\1',V1))) -> GENE.PP
+GENE.PP$aapos <- as.numeric(gsub('[A-Z]([0-9]+)[A-Z]','\\1',GENE.PP$V1))
+head(GENE.PP,40)
 ggplot(GENE.PP, aes(x = aapos, y=V2)) + geom_point()
 ####
 
 #### Merge protein Predict and fix up new df
 GENE.PP$V1 <- as.character(GENE.PP$V1)
-GENE.vars$aachange
-GENE.vars.mr <- merge(GENE.vars,GENE.PP, by.x='aachange', by.y = 'V1', all=FALSE)
+GENE.vars.f$aachange
+GENE.vars.mr <- merge(GENE.vars.f,GENE.PP, by.x='aachange', by.y = 'V1', all=FALSE)
 GENE.vars.mr$CADD.phred <- as.numeric(GENE.vars.mr$CADD.phred)
 GENE.vars.mr$PredictProtein <- as.numeric(GENE.vars.mr$V2)
 GENE.vars.mr$exac03 <- as.numeric(as.character(GENE.vars.mr$exac03))
 GENE.vars.mr$exac03[is.na(GENE.vars.mr$exac03)] <- 0
 GENE.vars.mr %>% arrange(Start) -> GENE.vars.mr
+head(GENE.vars.mr)
+colnames(GENE.vars.mr)[31]  <- "aapos"
 ####
 
-### Filtering 
 
-###
 
+
+
+##### Filtering 
+boxplot(GENE.vars.mr$PredictProtein)
+boxplot(GENE.vars.mr$CADD.phred)
+thresh.pp <- quantile(GENE.vars.mr$PredictProtein,.90)
+thresh.cadd <- quantile(GENE.vars.mr$CADD.phred,.90)
 ##### Filter Positive Controls
-GENE.vars.mr %>% mutate(PC = ifelse(PredictProtein > 75 & CADD.phred > 30 & (exac03 == 0 | is.na(exac03)) ,yes="PositiveControl", no = FALSE)) -> GENE.vars.mr
+GENE.vars.mr %>% mutate(PC = ifelse(PredictProtein > thresh.pp & CADD.phred > thresh.cadd & (exac03 == 0 | is.na(exac03)) ,yes="PositiveControl", no = FALSE)) -> GENE.vars.mr
 # Graph Predict Protein
 ggplot(GENE.vars.mr, aes(x = aapos, y = PredictProtein)) + geom_point(aes()) + xlab("Amino Acid Coordinates") + ylab("PredictProtein") + ggtitle("GENE.vars")
 # Graph CADD
 ggplot(GENE.vars.mr, aes(x = aapos, y = CADD.phred)) + geom_point(aes()) + xlab("Amino Acid Coordinates") + ylab("CADD") + ggtitle("GENE.vars")
+ggplot(GENE.vars.mr, aes(x = CADD.phred, y = PredictProtein)) + geom_point(aes()) + xlab("CADD") + ylab("PP") + ggtitle("GENE.vars")
+
 ####
 
 #### Graph the Positive Controls
 p1 <- ggplot(GENE.vars.mr, aes(x = aapos, y = PredictProtein, colour = PC,shape = PC)) + 
-  geom_point(size = 2.5) + xlab("Amino Acid Coordinates") + ylab("PredictProtein") + ggtitle("GENE.vars Positive Controls")
+  geom_point(size = 2.5) + xlab("Amino Acid Coordinates") + ylab("PredictProtein") + ggtitle(paste0(GENE," Positive Controls"))
 p2 <- ggplot(GENE.vars.mr, aes(x = aapos, y = CADD.phred, colour = PC,shape = PC)) + 
-  geom_point(size = 2.5) + xlab("Amino Acid Coordinates") + ylab("CADD Phred") + ggtitle("GENE.vars Positive Controls")
+  geom_point(size = 2.5) + xlab("Amino Acid Coordinates") + ylab("CADD Phred") + ggtitle(paste0(GENE," Positive Controls"))
 # CADD vs PredictProtein
 p3 <- ggplot(GENE.vars.mr, aes(x = PredictProtein, y = CADD.phred,colour = PC,shape = PC)) + 
-  geom_point(size = 2.5) + xlab("PredictProtein") + ylab("CADD Phred") + ggtitle("GENE.vars Positive Controls")
+  geom_point(size = 2.5) + xlab("PredictProtein") + ylab("CADD Phred") + ggtitle(paste0(GENE," Positive Controls"))
 cor(GENE.vars.mr$CADD.phred, GENE.vars.mr$PredictProtein, method='spearman')
 ####
 
 #### Negative Controls Filtering
+thresh.pp <- quantile(GENE.vars.mr$PredictProtein,.10)
+thresh.cadd <- quantile(GENE.vars.mr$CADD.phred,.10)
+
 GENE.vars.mr %>% filter(ExonicFunc.refGene == "nonsynonymous SNV") -> GENE.vars.mr.nc
-GENE.vars.mr.nc %>% mutate(NC = ifelse( test = ((PredictProtein < -50 & CADD.phred < 15 & exac03 > 0)|(PredictProtein < -50 & CADD.phred < 5)), 
+GENE.vars.mr.nc %>% mutate(NC = ifelse( test = ((PredictProtein < thresh.pp & CADD.phred < thresh.cadd & exac03 > 0)|(PredictProtein < -50 & CADD.phred < 5)), 
                                    yes = "NegativeControl", no = FALSE)) -> GENE.vars.mr.nc
 GENE.vars.mr.nc$NC[is.na(GENE.vars.mr.nc$NC)] <- FALSE
 ####
@@ -137,10 +174,13 @@ graph_variants <- function(anno.df,x.name,y.name,group,title){
 }
 graph_variants(GENE.vars,'aapos','CADD.phred','NC',"GENE.vars Negative Controls")
 
+p01 <- graph_variant_list(GENE.vars.mr,'aapos','CADD.phred',GENE.vars.nate$aachange,"in.group","GENE.vars Literature Mutations","Literature");
+
+
 graph_variant_list <- function(anno.df,x.name,y.name,var.list,group,title, legend.title){
   anno.df %>% filter(Func.refGene == "exonic") -> anno.df.f
   anno.df.f %>% mutate(in.group = ifelse(aachange %in% var.list, yes = TRUE, no = FALSE)) -> anno.df.fm
-  anno.df.fm$aapos <- as.numeric(gsub(".*(GENE.vars:NM_000314:exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+","\\2",anno.df.fm$AAChange.refGene))
+  anno.df.fm$aapos <- as.numeric(gsub(paste0(".*",GENE,":",TRANSCRIPT,":exon[0-9]+:c.[A-Z][0-9]+[A-Z]:p.[A-Z]([0-9]+)[A-Z],).+"),"\\2",anno.df.fm$AAChange.refGene))
   anno.df.fm %>% filter(in.group == TRUE) -> anno.df.trus
   anno.df.trus %>% print()
   
@@ -213,33 +253,47 @@ write.table(lit,"GENE.vars_MARV_vars.tsv", quote = FALSE, row.names=FALSE, sep =
 # write.table(der, "deriziotis_vars_all_columns.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
 ####
 
+#############################
 #### Call graphing functions
+##############################
 # lit
-p01 <- graph_variant_list(GENE.vars.mr,'aapos','CADD.phred',GENE.vars.nate$aachange,"in.group","GENE.vars Literature Mutations","Literature");
-p02 <- graph_variant_list(GENE.vars.mr,'aapos','PredictProtein',GENE.vars.nate$aachange,"in.group","GENE.vars Literature Mutations","Literature");
-p03 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',GENE.vars.nate$aachange,"in.group","GENE.vars Literature Mutations","Literature");
+
+p01 <- graph_variant_list(GENE.vars.mr,'aapos.y','CADD.phred',GENE.vars.nate$aachange,"in.group","GENE.vars Literature Mutations","Literature");p01
+p02 <- graph_variant_list(GENE.vars.mr,'aapos.y','PredictProtein',GENE.vars.nate$aachange,"in.group","GENE.vars Literature Mutations","Literature");p02
+p03 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',GENE.vars.nate$aachange,"in.group","GENE.vars Literature Mutations","Literature");p03
 #syn
-p1 <- graph_variant_list(GENE.vars.mr,'aapos','CADD.phred',GENE.vars.syn$aachange,"in.group","GENE.vars Synonymous Mutations","Synonymous");
-p2 <- graph_variant_list(GENE.vars.mr,'aapos','PredictProtein',GENE.vars.syn$aachange,"in.group","GENE.vars Synonymous Mutations","Synonymous");
-p3 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',GENE.vars.syn$aachange,"in.group","GENE.vars Synonymous Mutations","Synonymous");
+p1 <- graph_variant_list(GENE.vars.mr,'aapos.y','CADD.phred',GENE.vars.syn$aachange,"in.group","GENE.vars Synonymous Mutations","Synonymous");p1
+p2 <- graph_variant_list(GENE.vars.mr,'aapos.y','PredictProtein',GENE.vars.syn$aachange,"in.group","GENE.vars Synonymous Mutations","Synonymous");p2
+p3 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',GENE.vars.syn$aachange,"in.group","GENE.vars Synonymous Mutations","Synonymous");p3
 
 #pcs
-p4 <- graph_variant_list(GENE.vars.mr,'aapos','CADD.phred',pcs$aachange,"in.group","GENE.vars High Impact Mutations","High Impact");
-p5 <- graph_variant_list(GENE.vars.mr,'aapos','PredictProtein',pcs$aachange,"in.group","GENE.vars High Impact Mutations","High Impact");
-p6 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',pcs$aachange,"in.group","GENE.vars High Impact Mutations","High Impact");
+p4 <- graph_variant_list(GENE.vars.mr,'aapos.y','CADD.phred',pcs$aachange,"in.group","GENE.vars High Impact Mutations","High Impact");p4
+p5 <- graph_variant_list(GENE.vars.mr,'aapos.y','PredictProtein',pcs$aachange,"in.group","GENE.vars High Impact Mutations","High Impact");p5
+p6 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',pcs$aachange,"in.group","GENE.vars High Impact Mutations","High Impact");p6
 
 #ncs
-p7 <- graph_variant_list(GENE.vars.mr,'aapos','CADD.phred',ncs$aachange,"in.group","GENE.vars Low Impact Mutations","Low Impact");
-p8 <- graph_variant_list(GENE.vars.mr,'aapos','PredictProtein',ncs$aachange,"in.group","GENE.vars Low Impact Mutations","Low Impact");
-p9 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',ncs$aachange,"in.group","Low Impact Mutations","Low Impact");
+p7 <- graph_variant_list(GENE.vars.mr,'aapos.y','CADD.phred',ncs$aachange,"in.group","GENE.vars Low Impact Mutations","Low Impact");p7
+p8 <- graph_variant_list(GENE.vars.mr,'aapos.y','PredictProtein',ncs$aachange,"in.group","GENE.vars Low Impact Mutations","Low Impact");p8
+p9 <- graph_variant_list(GENE.vars.mr,'PredictProtein','CADD.phred',ncs$aachange,"in.group","Low Impact Mutations","Low Impact");p9
 ####
 
+# Slicing variants ****MEETING
+thresh.pp <- quantile(GENE.vars.mr$PredictProtein,.10)
+thresh.cadd <- quantile(GENE.vars.mr$CADD.phred,.90)
+GENE.vars.mr %>% filter(PredictProtein < thresh.pp & CADD.phred > thresh.cadd)
+
+thresh.pp <- quantile(GENE.vars.mr$PredictProtein,.90)
+thresh.cadd <- quantile(GENE.vars.mr$CADD.phred,.10)
+GENE.vars.mr %>% filter(PredictProtein > thresh.pp & CADD.phred < thresh.cadd)
+
+
 ## PDF output 2
-pdf(file="outputs/GENE.vars/GENE.varscontrols3.pdf", height = 12, width = 17)
-grid.arrange(tableGrob(lit), top = "GENE.vars Literature Mutations" );p01;p02;p03
-grid.arrange(tableGrob(scs), top = "GENE.vars Synonymous Mutations" );p1;p2;p3
-grid.arrange(tableGrob(pcs), top = "GENE.vars High Impact Mutations" );p4;p5;p6
-grid.arrange(tableGrob(ncs), top = "GENE.vars Low Impact Mutations");p7;p8;p9;p9
+outpath <- paste0("outputs/",GENE,"/",GENE,"controlvariants.pdf")
+pdf(file=outpath, height = 12, width = 17)
+grid.arrange(tableGrob(lit), top = paste0(GENE," Literature Mutations" ));p01;p02;p03
+grid.arrange(tableGrob(scs), top = paste0(GENE," Synonymous Mutations" ));p1;p2;p3
+grid.arrange(tableGrob(pcs), top = paste0(GENE," High Impact Mutations"));p4;p5;p6
+grid.arrange(tableGrob(ncs), top = paste0(GENE," Low Impact Mutations"));p7;p8;p9;p9
 #p10
 dev.off()
 
